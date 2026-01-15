@@ -56,16 +56,29 @@ func shortenHandler(repo *repository.URLRepository) http.HandlerFunc {
 	}
 }
 
-func redirectHandler(w http.ResponseWriter, r *http.Request) {
-	code := strings.TrimPrefix(r.URL.Path, "/")
-	if code == "" || code == "shorten" {
-		w.WriteHeader(http.StatusNotFound)
-		return
+func redirectHandler(repo *repository.URLRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		code := strings.TrimPrefix(r.URL.Path, "/")
+		if code == "" || code == "shorten" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		originalUrl, err := repo.Find(code)
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Print(err)
+			return
+		}
+
+		if originalUrl == "" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		http.Redirect(w, r, originalUrl, http.StatusFound)
 	}
-
-	url := "https://google.com"
-
-	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func connectDB() *sql.DB {
@@ -90,6 +103,7 @@ func main() {
 
 	http.HandleFunc("/hello", pingHandler)
 	http.HandleFunc("/shortener", shortenHandler(repo))
+	http.HandleFunc("/{code}", redirectHandler(repo))
 
 	fmt.Println("Servidor rodando em http://localhost:8080")
 	http.ListenAndServe(":8080", nil)

@@ -1,6 +1,9 @@
 package repository
 
-import "database/sql"
+import (
+	"database/sql"
+	"fmt"
+)
 
 type URLRepository struct {
 	db *sql.DB
@@ -18,7 +21,7 @@ func (r *URLRepository) Create(originalURL string) (int64, string, error) {
 		return 0, "", err
 	}
 
-	short := encodeBase62(uint64(10000+id))
+	short := encodeBase62(uint64(10000 + id))
 
 	query := `
 		INSERT INTO urls (id, original_url, short_url)
@@ -30,4 +33,15 @@ func (r *URLRepository) Create(originalURL string) (int64, string, error) {
 	}
 
 	return id, short, nil
+}
+
+func (r *URLRepository) Find(shortCode string) (string, error) {
+	var originalURL string
+
+	err := r.db.QueryRow(fmt.Sprintf("SELECT original_url FROM urls WHERE short_url = '%s'", shortCode)).Scan(&originalURL)
+	if err != nil {
+		return "", err
+	}
+
+	return originalURL, nil
 }
