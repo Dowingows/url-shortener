@@ -3,6 +3,8 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/speps/go-hashids"
 )
 
 type URLRepository struct {
@@ -21,7 +23,11 @@ func (r *URLRepository) Create(originalURL string) (int64, string, error) {
 		return 0, "", err
 	}
 
-	short := encodeBase62(uint64(10000 + id))
+	hd := hashids.NewData()
+	hd.Salt = "meu-salt-secreto"
+	hd.MinLength = 6
+	h, _ := hashids.NewWithData(hd)
+	short, _ := h.Encode([]int{int(id)})
 
 	query := `
 		INSERT INTO urls (id, original_url, short_url)
