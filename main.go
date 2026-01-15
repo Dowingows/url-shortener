@@ -55,7 +55,7 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/ping", pingHandler)
+	http.HandleFunc("/hello", pingHandler)
 	http.HandleFunc("/shortener", shortenHandler)
 
 	fmt.Println("Servidor rodando em http://localhost:8080")
