@@ -1,45 +1,59 @@
 package main
 
 import (
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"encoding/json"
 	"strings"
+
+	"github.com/Dowingows/url-shortener/repository"
+	_ "github.com/lib/pq"
 )
 
 func pingHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "pong")
 }
 
-func shortenHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
+func shortenHandler(repo *repository.URLRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 
-	type Payload struct {
-		URL string `json:"url"`
-	}
+		type Payload struct {
+			URL string `json:"url"`
+		}
 
-	var pay Payload
-	if err := json.NewDecoder(r.Body).Decode(&pay); err != nil || pay.URL == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+		var pay Payload
+		if err := json.NewDecoder(r.Body).Decode(&pay); err != nil || pay.URL == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
-	type Response struct{
-		Short string `json:"short_url"`
-		Original string `json:"original_url"`
-	}
+		_, shortCode, err := repo.Create(pay.URL)
 
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type","application/json")
-	
-	json.NewEncoder(w).Encode(Response{
-		Short: "asd",
-		Original: pay.URL,
-	})
-	
+		if err != nil {
+			fmt.Print(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		type Response struct {
+			Short    string `json:"short_url"`
+			Original string `json:"original_url"`
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+
+		json.NewEncoder(w).Encode(Response{
+			Short:    "http://localhost:8080/" + shortCode,
+			Original: pay.URL,
+		})
+
+	}
 }
 
 func redirectHandler(w http.ResponseWriter, r *http.Request) {
@@ -54,9 +68,28 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
+func connectDB() *sql.DB {
+	connStr := "host=localhost port=5432 user=postgres password=postgres dbname=shortener sslmode=disable"
+
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		panic(fmt.Sprintf("Erro ao abrir banco: %v", err))
+	}
+
+	if err := db.Ping(); err != nil {
+		panic(fmt.Sprintf("Erro ao conectar no banco: %v", err))
+	}
+
+	return db
+}
+
 func main() {
+
+	db := connectDB()
+	repo := repository.NewURLRepository(db)
+
 	http.HandleFunc("/hello", pingHandler)
-	http.HandleFunc("/shortener", shortenHandler)
+	http.HandleFunc("/shortener", shortenHandler(repo))
 
 	fmt.Println("Servidor rodando em http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
