@@ -49,7 +49,7 @@ func shortenHandler(repo *repository.URLRepository) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		json.NewEncoder(w).Encode(Response{
-			Short:    "http://localhost:8080/" + shortCode,
+			Short:    "http://host.docker.internal:8080/" + shortCode,
 			Original: pay.URL,
 		})
 
@@ -82,7 +82,7 @@ func redirectHandler(repo *repository.URLRepository) http.HandlerFunc {
 }
 
 func connectDB() *sql.DB {
-	connStr := "host=localhost port=5432 user=postgres password=postgres dbname=shortener sslmode=disable"
+	connStr := "host=postgres port=5432 user=postgres password=postgres dbname=shortener sslmode=disable"
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -90,7 +90,7 @@ func connectDB() *sql.DB {
 	}
 
 	if err := db.Ping(); err != nil {
-		panic(fmt.Sprintf("Erro ao conectar no banco: %v", err))
+		fmt.Print(fmt.Sprintf("Erro ao conectar no banco: %v", err))
 	}
 
 	return db
@@ -105,6 +105,6 @@ func main() {
 	http.HandleFunc("/shortener", shortenHandler(repo))
 	http.HandleFunc("/{code}", redirectHandler(repo))
 
-	fmt.Println("Servidor rodando em http://localhost:8080")
+	fmt.Println("Servidor rodando em http://host.docker.internal:8080")
 	http.ListenAndServe(":8080", nil)
 }
